@@ -1,0 +1,61 @@
+version: "3"
+name: "PRODUCTS-APP"
+services:
+  nats-server:
+    image: nats:latest
+    ports:
+      - ${NATS_SERVER_PORT}:8222
+
+  client-gateway:
+    build: ./client-gateway
+    depends_on:
+      - products-ms
+      - orders-ms
+      - nats-server
+    ports:
+      - ${CLIENT_GATEWAY_PORT}:3000
+    volumes:
+      - ./client-gateway/src:/usr/src/app/src
+    command: npm run start:dev
+    environment:
+      - PORT=3000
+      - NATS_SERVERS=nats://nats-server:4222
+
+  products-ms:
+    build: ./products-ms
+    depends_on:
+      - nats-server
+    volumes:
+      - ./products-ms/src:/usr/src/app/src
+      - ./products-ms/prisma/dev.db:/usr/src/app/prisma/dev.db
+    command: npm run start:dev
+    environment:
+      - PORT=3000
+      - NATS_SERVERS=nats://nats-server:4222
+      - DATABASE_URL=file:./dev.db
+
+  orders-db:
+    image: postgres:16.2
+    restart: always
+    volumes:
+      - ./orders-ms/postgres:/var/lib/postgresql/data
+    ports:
+      - ${POSTGRES_PORT}:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=ordersDb
+
+  orders-ms:
+    build: ./orders-ms
+    depends_on:
+      - orders-db
+      - products-ms
+      - nats-server
+    volumes:
+      - ./orders-ms/src:/usr/src/app/src
+    command: npm run start:docker-dev
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:123456@orders-db:5432/ordersDb
+      - NATS_SERVERS=nats://nats-server:4222
