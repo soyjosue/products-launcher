@@ -79,3 +79,12 @@ services:
       - 3003:3003
     command: npm run start:dev
   #####################################################
+  auth-ms:
+    build: ./auth-ms
+    restart: always
+    env_file:
+      - ./auth-ms/.env
+    volumes:
+      - ./auth-ms/src:/usr/src/app/src
+    command: npm run start:dev
+  #####################################################
