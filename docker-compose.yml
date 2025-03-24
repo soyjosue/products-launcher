@@ -1,13 +1,18 @@
 version: "3"
 name: "PRODUCTS-APP"
 services:
+  #####################################################
   nats-server:
     image: nats:latest
+    restart: always
     ports:
       - ${NATS_SERVER_PORT}:8222
+  #####################################################
 
+  #####################################################
   client-gateway:
     build: ./client-gateway
+    restart: always
     depends_on:
       - products-ms
       - orders-ms
@@ -17,23 +22,25 @@ services:
     volumes:
       - ./client-gateway/src:/usr/src/app/src
     command: npm run start:dev
-    environment:
-      - PORT=3000
-      - NATS_SERVERS=nats://nats-server:4222
+    env_file:
+      - ./client-gateway/.env
+  #####################################################
 
+  #####################################################
   products-ms:
     build: ./products-ms
+    restart: always
     depends_on:
       - nats-server
     volumes:
       - ./products-ms/src:/usr/src/app/src
       - ./products-ms/prisma/dev.db:/usr/src/app/prisma/dev.db
     command: npm run start:dev
-    environment:
-      - PORT=3000
-      - NATS_SERVERS=nats://nats-server:4222
-      - DATABASE_URL=file:./dev.db
+    env_file:
+      - ./products-ms/.env
+  #####################################################
 
+  #####################################################
   orders-db:
     image: postgres:16.2
     restart: always
@@ -45,9 +52,9 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=123456
       - POSTGRES_DB=ordersDb
-
   orders-ms:
     build: ./orders-ms
+    restart: always
     depends_on:
       - orders-db
       - products-ms
@@ -55,7 +62,20 @@ services:
     volumes:
       - ./orders-ms/src:/usr/src/app/src
     command: npm run start:docker-dev
-    environment:
-      - PORT=3000
-      - DATABASE_URL=postgresql://postgres:123456@orders-db:5432/ordersDb
-      - NATS_SERVERS=nats://nats-server:4222
+    env_file:
+      - ./orders-ms/.env
+  #####################################################
+
+  payments-ms:
+    build: ./payments-ms
+    restart: always
+    env_file:
+      - ./payments-ms/.env
+    depends_on:
+      - nats-server
+    volumes:
+      - ./payments-ms/src:/usr/src/app/src
+    ports:
+      - 3003:3003
+    command: npm run start:dev
+  #####################################################
