@@ -66,6 +66,7 @@ services:
       - ./orders-ms/.env
   #####################################################
 
+  #####################################################
   payments-ms:
     build: ./payments-ms
     restart: always
@@ -79,6 +80,34 @@ services:
       - 3003:3003
     command: npm run start:dev
   #####################################################
+
+  #####################################################
+  auth-db:
+    build:
+      context: ./auth-ms/mongodb_replica
+      args:
+        MONGO_VERSION: 4
+    environment:
+      MONGO_REPLICA_HOST: auth-db
+      MONGO_REPLICA_PORT: 27018
+      MONGO_COMMAND: "mongo"
+    ports:
+      - "27018:27018"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongo",
+          "admin",
+          "--port",
+          "27018",
+          "--eval",
+          "db.adminCommand('ping').ok",
+        ]
+      interval: 5s
+      timeout: 2s
+      retries: 20
   auth-ms:
     build: ./auth-ms
     restart: always
@@ -87,4 +116,6 @@ services:
     volumes:
       - ./auth-ms/src:/usr/src/app/src
     command: npm run start:dev
+    environment:
+      - DATABASE_URL=${AUTH_DATABASE_URL}
   #####################################################
